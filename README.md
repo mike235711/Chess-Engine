@@ -18,3 +18,5 @@ To do:
 * Killer moves
 * Null move pruning
 * NNUE
+* Connect to UCI
+
