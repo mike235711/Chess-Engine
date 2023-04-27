@@ -2,7 +2,7 @@
 In this project I will create a chess engine from scratch. Classical chess engines usually consist of 3 main parts:
 
 * A move generator, generating all legal moves in a chess position
-* A function that evaluates positions
+* A function that evaluates positions (Possibly a neural network)
 * An algorithm that searches in the variations and chooses the best
 
 I have created my own move generator, taking into account alll the rules of chess and implementing an idea I had of making use of the symmetries of the chess board. Speed in this part of the engine is essential because the engine will have to calculate many variations and chess is usually played with time limtis. *Since python is not the fastest programming language in the future I will rewrite this in C++.*
