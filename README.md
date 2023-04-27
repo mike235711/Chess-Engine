@@ -9,13 +9,13 @@ I have created my own move generator, taking into account all the rules of chess
 
 When evaluating positions, my idea is to use a neural network. Since speed is very important we can't use any neural network to evaluate positions, there are a special type of nerual networks called efiiciently updatable neural networks (NNUE) which are fast enough for chess engines and can be trained to evaluate positions to a very high level.
 
-There are many choices of the algorithm one can choose for a chess engine, however alpha-beta pruning is the most efficient because it prunes branches of the tree search that one doesn't need to search. On top of the alpha beta search I have added a score to moves depending on capturing pieces, pawns and making checks. The algorithm is contructed such that it considers high score moves first, making it faster because it prunes more branches. I have also applied quiescence search so that in tactical positions (when there are possible captures or checks by either side) it moves reasonably until a quiet position is reached.
+There are many choices of search algorithms for chess engines, however alpha-beta pruning is the most efficient because it prunes branches of the tree search that one doesn't need to search. On top of the alpha beta search I have added a score to moves depending on capturing pieces, pawns and making checks. The algorithm is contructed such that it considers high score moves first, making it faster because it prunes more branches. I have also applied quiescence search so that in tactical positions (when there are possible captures or checks by either side) it moves reasonably until a quiet position is reached.
 
 To do:
 * Hash Tables - Done (Speeds up to twice the Engine, see notebook)
-* 50 - move rule
+* 50 move rule
 * Iterative deepening
-* Killer moves
+* Killer moves (In progress)
 * Null move pruning
 * NNUE (In progress)
 * Connect to UCI (In progress)
