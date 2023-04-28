@@ -15,7 +15,7 @@ To do:
 * Castling moves don't appear in gen_moves
 * Hash Tables - Done (Speeds up to twice the Engine, see notebook)
 * 50 move rule
-* Iterative deepening (In progress)
+* Iterative deepening - Done, but want to add variations not only first move
 * Killer moves - Done (Can speed up engine up to 1.5 times as much, depending on position)
 * Null move pruning
 * NNUE (In progress)
