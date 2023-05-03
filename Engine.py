@@ -1,10 +1,13 @@
 
 import chess
 import time
+import copy
+
 
 #########################
 # Chess Environment
 #########################
+
 N = 8
 E = 1
 S = -8
@@ -129,11 +132,11 @@ DirectionsDict = {0: directions_a1, 1: directions_b1,
                   11: directions_d2, 18: directions_c3, 19: directions_d3,
                   26: directions_c4, 27: directions_d4}
 board = [ 'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R',
-         'P', 'P', 'r', 'P', 'klk', 'P', 'P', 'P',
+         'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
          '0', '0', '0', '0', '0', '0', '0', '0',
-         '0', '0', 'k', '0', '0', '0', '0', '0',
          '0', '0', '0', '0', '0', '0', '0', '0',
-         '0', '2', 'm', '0', '0', '0', '0', '0',
+         '0', '0', '0', '0', '0', '0', '0', '0',
+         '0', '0', '0', '0', '0', '0', '0', '0',
          'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p',
          'r', 'n', 'b', 'q', 'k', 'b', 'n', 'k' ]
 
@@ -147,12 +150,8 @@ Move = namedtuple("Move", "i j prom score")  # The Move class is a named tuple t
 # and prom, which is the promotion piece if the move is a pawn promotion.
 # and score +2 captures
 # +1 checks
-import copy
-
-
 class Position:
-    def __init__(self, board, psquare, wc, bc, history,
-                 turn):  # When creating a Position we will have to specify these variables
+    def __init__(self, board, psquare, wc, bc, history, turn):  # When creating a Position we will have to specify these variables
         self.board = board  # an array of length 64
         self.psquare = psquare  # An integer representing the square that can be captured using en passant.
         # It will be -1 if the last move wasn't a double pawn move.
@@ -163,8 +162,8 @@ class Position:
         # of the list represents kingside castle, the second queenside castle. They only check
         # if the king or rook has already moved (to check if there are in between checks we do
         # it in gen_moves method).
-        self.history = [''.join(self.board)]
-        self.turn = turn  # True if white, False if black
+        self.history = ['/'.join([''.join(self.board), '/'.join([str(self.wc[0]), str(self.wc[1])]), '/'.join([str(self.bc[0]), str(self.bc[1])]), str(self.psquare)])]
+        self.turn = turn  # True if white's turn, False if black
 
     def checks_pins(self):
         checks = [0]
@@ -231,6 +230,8 @@ class Position:
                             d = -9
                         if d == 9:
                             d = -7
+                        if (d in (7, -9) and (square in (0, 8, 16, 24, 32, 40, 48, 56, 7, 15, 23, 31, 39, 47, 55))):
+                            continue
                     jflip = flipsquare + d
                     j = flipsquarelist[jflip]
                     q = self.board[j]  # What is on destination square
@@ -301,9 +302,6 @@ class Position:
         pins = checks_pins[1]
         for square, piece in enumerate(self.board):
             attacked_squares = self.own_attacked_squares()
-            # MAYBE INSTEAD OF CREATING FLIPBOARD AND FLIPSQUARE WE CAN CREATE A FOR LOOP, RUNNING THROUGH
-            # THE DIRECTIONS ON EACH OF THE 4 BY 4 QUARTERBOARDS, I WILL CHECK WHEN FINISHED IF THIS IS MORE
-            # EFFICIENT(MAYBE BECAUSE LESS MEMORY USAGE?).
             if not piece.isupper():  # We only check for white pieces(rotation will allow then to check for black)
                 continue
             if square not in attacked_squares and checks[0] == 0:
@@ -479,20 +477,27 @@ class Position:
                             score += 3  # Checks get a score
 
                         # Castling, by sliding the rook next to the king
-                        if square == 0 and self.wc[1] and q == 'K':
-                            position2 = self
-                            if self.null_move(Move(j + E, j, '', 0)).rotate().checks_pins()[0][0] != 0 or \
-                                    position2.null_move(Move(j + E, j + W, '', 0)).rotate().checks_pins()[0][0] != 0:
+                        if square == 0 and self.wc[1] and q == 'K' and self.turn:
+                            if self.null_move(Move(j , j+W, '', 0)).rotate().checks_pins()[0][0] != 0 or self.null_move(Move(j, j + W+W, '', 0)).rotate().checks_pins()[0][0] != 0:
                                 break
-                            yield Move(j + E, j + W, "", score)  # castling is represented by the king move (makes
+                            yield Move(j , j + W+W, "", 1)  # castling is represented by the king move (makes
                             # move method easier)
                             break
-                        if square == 7 and self.wc[0] and q == 'K':
-                            position2 = self
-                            if self.null_move(Move(j + W, j, '', 0)).rotate().checks_pins()[0][0] != 0 or \
-                                    position2.null_move(Move(j + W, j + E, '', 0)).rotate().checks_pins()[0][0] != 0:
+                        elif square == 0 and self.wc[1] and q == 'K':
+                            if self.null_move(Move(j, j+W, '', 0)).rotate().checks_pins()[0][0] != 0 or self.null_move(Move(j, j + W + W, '', 0)).rotate().checks_pins()[0][0] != 0:
                                 break
-                            yield Move(j + W, j + E, "", score)
+                            yield Move(j, j + W+W, "", 1)  # castling is represented by the king move (makes
+                            # move method easier)
+                            break
+                        if square == 7 and self.wc[0] and q == 'K' and self.turn:
+                            if self.null_move(Move(j, j+E, '', 0)).rotate().checks_pins()[0][0] != 0 or self.null_move(Move(j, j + E+E, '', 0)).rotate().checks_pins()[0][0] != 0:
+                                break
+                            yield Move(j, j+E+E, "", 1)
+                            break
+                        elif square == 7 and self.wc[0] and q == 'K':
+                            if self.null_move(Move(j, j+E, '', 0)).rotate().checks_pins()[0][0] != 0 or self.null_move(Move(j, j+E+E, '', 0)).rotate().checks_pins()[0][0] != 0:
+                                break
+                            yield Move(j, j + E+E, "", 1)
                             break
                         if q.isupper():
                             break  # we cant move if our own piece is blocking
@@ -529,6 +534,8 @@ class Position:
                             continue
                         if (d in (7, -7, 9, -9) and (q == "0" and self.psquare != j)):
                             continue  # Can't capture or en passant
+                        if (d in (7, -9) and (square in (0, 8, 16, 24, 32, 40, 48, 56, 7, 15, 23, 31, 39, 47, 55))):
+                            continue
                         if 56 <= j:  # If we move to the last row, we can promote
                             for prom in "NBRQ":
                                 yield Move(square, j, prom, score)
@@ -605,6 +612,8 @@ class Position:
                             continue
                         if (d in (N + W, N + E, -N - W, -N - E) and (q == "0" and self.psquare != j)):
                             continue  # Can't capture or en passant
+                        if (d in (7, -9) and (square in (0, 8, 16, 24, 32, 40, 48, 56, 7, 15, 23, 31, 39, 47, 55))):
+                            continue
                         if 56 <= j:  # If we move to the last row, we can promote
                             for prom in "NBRQ":
                                 yield Move(square, j, prom, score)
@@ -767,9 +776,13 @@ class Position:
         # Castling
         if piece == "K":
             wc = (False, False)  # if king moves then player can't castle
-            if abs(j - i) == 2:  # if castling... ¡¡¡ARREGLAR ESTO!!!
-                newboard = put(newboard, 0 if j < i else 7, "0")
-                newboard = put(newboard, 2 if j < i else 4, "R")
+            if abs(j - i) == 2:  # if castling
+                if self.turn: # castling for white
+                    newboard = put(newboard, 0 if j < i else 7, "0")
+                    newboard = put(newboard, 3 if j < i else 5, "R")
+                else: # castling for black
+                    newboard = put(newboard, 0 if j < i else 7, "0")
+                    newboard = put(newboard, 2 if j < i else 4, "R")
         # Pawn promotion, double move and en passant capture
         if piece == "P":
             if 56 <= j:
@@ -780,9 +793,11 @@ class Position:
                 newboard = put(newboard, j + S, "0")
         # We rotate the returned position, so it's ready for the next player
         if self.turn == True:  # If white has moved
-            self.history.append(''.join(newboard))  # Making a move will add the new board to history
+            self.history.append('/'.join([''.join(newboard), '/'.join([str(self.wc[0]), str(self.wc[1])]),
+                                 '/'.join([str(self.bc[0]), str(self.bc[1])]), str(self.psquare)])) # Making a move will add the new board to history
         if self.turn == False:  # If black has moved we add board to history from white's perspective
-            self.history.append(''.join([x.swapcase() for x in newboard[::-1]]))
+            self.history.append('/'.join([''.join([x.swapcase() for x in newboard[::-1]]), '/'.join([str(self.wc[0]), str(self.wc[1])]),
+                                          '/'.join([str(self.bc[0]), str(self.bc[1])]), str(self.psquare)]))
         self.turn = not self.turn  # making a move changes turn
         # Making a move will change the actual position object
         # This will later make code more memory efficient
@@ -801,13 +816,18 @@ class Position:
             return False
 
     def pop(self):  # ¡¡¡ADD ALSO WC BC PSQUARE(AND FOR HISTORY TOO)!!!
-        self.history.pop(-1)  # Delete current board from history
+        self.history.pop(-1)  # Delete current state from history
         self.turn = not self.turn  # We change turns
-        board = list(self.history[-1])
+        board = list(self.history[-1].split('/')[0])
         if self.turn == True:  # If after going back it is white's turn
             self.board = board  # Current board -> last board
         if self.turn == False:
             self.board = [x.swapcase() for x in board[::-1]]  # we want self.board to be from players move perspective
+        self.wc[0] = self.history[-1].split('/')[1] == 'True'
+        self.wc[1] = self.history[-1].split('/')[2] == 'True'
+        self.bc[0] = self.history[-1].split('/')[3] == 'True'
+        self.bc[1] = self.history[-1].split('/')[4] == 'True'
+        self.psquare = self.history[-1].split('/')[-1]
         return self
 
     def quiet(self):
@@ -856,27 +876,55 @@ Squares_Dict = ['a1', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1',
                 'a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7',
                 'a8', 'b8', 'c8', 'd8', 'e8', 'f8', 'g8', 'h8']
 
+class IterativeEngine:
+    def alpha_beta(position, depth, alpha, beta, our_turn, hash_table, killer1, killer2, killer1_count, killer2_count,
+                   iterative_moves, count):
+        count += 1
+        if position.turn == True:  # Whose turn it is will be part of the hash keys
+            turn = '1'
+        else:
+            turn = '0'
+        # The hash_keys are strings containing: board, passant_square, player_turn
+        hash_key = ''.join([''.join(position.board), str(position.psquare), turn])
 
-class Engine:
-    def alpha_beta(position, depth, alpha, beta, our_turn):
+        if hash_key in hash_table.keys():
+            return hash_table[hash_key], 0
+
+        if len(hash_table) == 100:
+            del hash_table[(next(iter(hash_table)))]  # Delete oldest hash_key
+
         ordered_moves = position.ordered_moves()
+
         if position.three_fold():  # Repetitions
             return 0, 0
 
         if len(ordered_moves) == 0 and position.checks_pins()[0][0] == 0:  # Stalemate
+            hash_table[hash_key] = 0
             return 0, 0
 
         if len(ordered_moves) == 0 and our_turn:  # Checkmate against us
-            return -1003, 0
+            hash_table[hash_key] = -1003
+            return -10003, 0
 
         if len(ordered_moves) == 0 and not our_turn:  # Checkmate against opponent
-            return 1003, 0
+            hash_table[hash_key] = 1003
+            return 10003, 0
+
+        if killer1 == None and our_turn:  # At the start killer is set to None, so we start with the first move
+            killer1 = ordered_moves[0]
+
+        elif killer2 == None and not our_turn:
+            killer2 = ordered_moves[0]
 
         if depth <= 0 and position.quiet() and our_turn:
-            return evaluate_position_from_board(position.board), 0
+            x = evaluate_position_from_board(position.board)
+            hash_table[hash_key] = x
+            return x, 0
 
         if depth <= 0 and position.quiet() and not our_turn:
-            return -evaluate_position_from_board(position.board), 0
+            x = -evaluate_position_from_board(position.board)
+            hash_table[hash_key] = x
+            return x, 0
 
         if depth <= 0 and not position.quiet():  # If depth is reached we continue with captures (not pawns) and
             ordered_moves = [move for move in ordered_moves if move.score >= 2]  # checks until quiet position
@@ -886,10 +934,33 @@ class Engine:
             ordered_moves = list(position.out_of_attack_moves())'''
 
         if len(ordered_moves) == 0 and our_turn:
-            return evaluate_position_from_board(position.board), 0
+            x = evaluate_position_from_board(position.board)
+            hash_table[hash_key] = x
+            return x, 0
 
         if len(ordered_moves) == 0 and not our_turn:
-            return -evaluate_position_from_board(position.board), 0
+            x = -evaluate_position_from_board(position.board)
+            hash_table[hash_key] = x
+            return x, 0
+
+        if our_turn:  # Killer_count prevents killer moves from going to different depths
+            killer1_count += 1
+        else:
+            killer2_count += 1
+
+        if killer1_count == 2:
+            killer1 = ordered_moves[0]
+
+        if killer2_count == 2:
+            killer2 = ordered_moves[0]
+
+        if our_turn and killer1 in ordered_moves:  # Move killer move to first position
+            ordered_moves.insert(0, ordered_moves.pop(ordered_moves.index(killer1)))
+        elif not our_turn and killer2 in ordered_moves:
+            ordered_moves.insert(0, ordered_moves.pop(ordered_moves.index(killer2)))
+
+        if count == 1 and len(iterative_moves) != 0:
+            ordered_moves.insert(0, ordered_moves.pop(ordered_moves.index(iterative_moves[0])))
 
         best_move = ordered_moves[0]
 
@@ -897,55 +968,187 @@ class Engine:
             value1 = -1000  # This is the best evaluation for white in the child_values
             for move in ordered_moves:
                 position.move(move)
-                child_value = Engine.alpha_beta(position, depth - 1, alpha, beta, False)[0]
+                child_value = \
+                IterativeEngine.alpha_beta(position, depth - 1, alpha, beta, False, hash_table, killer1, killer2,
+                                           killer1_count, killer2_count, iterative_moves, count)[0]
+                killer1_count = 0
                 if child_value > value1:
                     value1 = child_value
                     best_move = move
+                    killer1 = best_move
                 position.pop()
                 if value1 >= beta:
-                    break  # Because if our best move is better than the best in another set of moves that lead from
-                alpha = max(alpha,
-                            value1)  # a different move from opponent, then the opponent will choose the other move.
+                    break  # Because if our best move is better than the best in another set of moves that lead from a different move from opponent, then opponent will choose the other move.
+                alpha = max(alpha, value1)
 
         else:  # If opponent has to move
-            value2 = 1001
+            value2 = 1000
             for move in ordered_moves:
                 position.move(move)
-                child_value = Engine.alpha_beta(position, depth - 1, alpha, beta, True)[0]
+                child_value = \
+                IterativeEngine.alpha_beta(position, depth - 1, alpha, beta, True, hash_table, killer1, killer2,
+                                           killer1_count, killer2_count, iterative_moves, count)[0]
+                killer2_count = 0
                 if child_value < value2:
                     value2 = child_value
                     best_move = move
+                    killer2 = best_move
                 position.pop()
                 if alpha >= value2:  # Because if our opponents best move is better (less than) than the best
                     break  # in another set of moves that lead from a different move from us,
                 beta = min(beta, value2)  # then we will choose the other move.
+        if our_turn:
+            x = value1
+        else:
+            x = value2
+        hash_table[hash_key] = x
         return (value1, best_move) if our_turn else (value2, best_move)
 
-    def Search(position, is_our_move, depth):
+    def Search(self, position, max_time):  # max time we want to consume in seconds
         # alpha is the current best evaluation for white, it will start at -1000
         # beta is the current best evaluation for black, it will start at +1000
         start_time = time.time()
         best_move = None
-        if is_our_move:
-            alpha = -10000  # Current best evaluation for us
-            beta = 10000  # Current best evaluation for opponent
-            best_value, best_move = Engine.alpha_beta(position, depth, alpha, beta, True)
+        killer1 = None
+        killer2 = None
+        alpha = -10005  # Current best evaluation for us
+        beta = 10005  # Current best evaluation for opponent
+        iterative_moves = []
+        for depth in range(100):
+            best_value, best_move = self.alpha_beta(position, depth + 1, alpha, beta, True, {}, killer1,
+                                                               killer2, 0, 0, iterative_moves, 0)
             end_time = time.time()
             elapsed_time = end_time - start_time
-            return ["Time taken:", elapsed_time, "seconds", "Best move: ", best_move, "Evaluation: ", best_value]
-        else:  # Now we make the engine think while it isn't it's turn ¡¡¡ACABAR ESTO!!!
-            Dict = {}
-            new_position = position.move(move)
-            best_move = None
-            Dict[move] = (new_engine_position(new_position, is_our_move, depth + 1)[4],
-                          new_engine_position(new_position, is_our_move, depth + 1)[6])
-            return (Dict)  # This is a dictionary of the form {move: best response, evaluation}
+            iterarive_moves = [best_move]  # ¡¡¡NO METER SOLO EL PRIMER MOVIMIENTO!!!
+            if elapsed_time >= max_time:
+                last_depth = depth
+                break
+        return ["Time taken:", elapsed_time, "seconds", "Best move: ", best_move, "Evaluation: ", best_value, 'Depth:',
+                last_depth]
 
     def Tell_Move(move):  # Spit move to UCI
         square = Squares_Dict[move.i]
         destination = Squares_Dict[move.j]
-        return ''.join([square, destination, move.prom])
+        return 'bestmove ' + ''.join([square, destination, move.prom])
+
+    def Time_Management(our_time, increment):
+
+        return time_for_move
 
 #######################################
 # UCI
 #######################################
+
+def algebraic_to_move(move):
+    return 'klk'
+
+engine = IterativeEngine()
+
+'''The parse function takes a string c representing a chess move in algebraic notation 
+and returns an integer representing the move in the internal format used by the engine. 
+'''
+
+def parse(c):
+    fil, rank = ord(c[0]) - ord("a"), int(c[1]) - 1
+    return A1 + fil - 10 * rank
+
+'''The hist list is initialized with a single element representing the initial position of a 
+chess game. This position is represented as an object of the Position class, which is not 
+defined in the code snippet provided.
+'''
+initial_board = [ 'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R',
+         'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
+         '0', '0', '0', '0', '0', '0', '0', '0',
+         '0', '0', '0', '0', '0', '0', '0', '0',
+         '0', '0', '0', '0', '0', '0', '0', '0',
+         '0', '0', '0', '0', '0', '0', '0', '0',
+         'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p',
+         'r', 'n', 'b', 'q', 'k', 'b', 'n', 'k' ]
+
+Position(initial_board, -1, [True, True], [True, True], [], True)
+
+'''The import statement imports the run function from the tools.uci module and the sys module,
+which provides access to some variables used later in the code.
+'''
+# import sys, tools.uci
+
+'''The run function is called with two arguments: a reference to the current module 
+(sys.modules[__name__]) and the last element of the hist list (hist[-1]). The run function is 
+defined in the tools.uci module and is responsible for handling communication with the UCI protocol.
+'''
+# tools.uci.run(sys.modules[__name__], hist[-1])
+# sys.exit()
+
+'''The while loop runs indefinitely until the user enters the quit command. Within the loop, 
+the user's input is split into a list of strings using the split method.
+'''
+
+while True:
+    args = input().split()
+
+    # If the first element of args is "uci", the engine prints its name and version and then the
+    # string "uciok", indicating that it is ready to receive commands.
+
+    if args[0] == "uci":
+        print(f"id name Engine\n")
+        print("uciok\n")
+
+    # If the first element of args is "isready", the engine prints the string "readyok",
+    # indicating that it is ready to receive a search command.
+
+    elif args[0] == "isready":
+        print("readyok\n")
+
+    # If the first element of args is "quit", the loop is exited and the program terminates.
+
+    elif args[0] == "quit":
+        break
+
+    # If the first two elements of args are ["position", "startpos"], the engine resets
+    # the position to the initial position and applies any subsequent moves in args. The
+    # del hist[1:] statement removes all elements of hist after the first element (i.e.,
+    # the initial position). The subsequent moves in args are applied to the position by
+    # parsing them using the parse function and calling the move method of the last element
+    # of hist. The move method returns a new Position object representing the resulting
+    # position after the move.
+
+    elif args[:2] == ["position", "startpos"]:
+        del hist[1:]
+        for ply, move in enumerate(args[3:]):
+            i, j, prom = parse(move[:2]), parse(move[2:4]), move[4:].upper()
+            if ply % 2 == 1:
+                i, j = 119 - i, 119 - j
+            hist.append(hist[-1].move(Move(i, j, prom)))
+
+    # If the first element of args is "go", the engine initiates a search for the best
+    # move. The time control for the search is specified by the second, third, fourth,
+    # and fifth elements of args, which represent the remaining time (in milliseconds)
+    # for white and black, and the time increment (in milliseconds) for white and black
+    # respectively. These values are converted to integers using the int function.
+
+    elif args[0] == "go":
+        wtime, btime, winc, binc = [int(a) / 1000 for a in args[2::2]]
+        if len(hist) % 2 == 0:
+            wtime, winc = btime, binc
+        think = min(wtime / 40 + winc, wtime / 2 - 1)
+
+    # After initiating the search, the engine waits for the best move to be returned by
+    # the search algorithm. Once the best move is returned, it is applied to the current
+    # position by calling the move method of the last element of hist, and a string
+    # representation of the move is printed to the console using the render function.
+
+    start = time.time()
+    move_str = None
+    for depth, gamma, score, move in Searcher().search(hist):
+        # The only way we can be sure to have the real move in tp_move,
+        # is if we have just failed high.
+        if score >= gamma:
+            i, j = move.i, move.j
+            if len(hist) % 2 == 0:
+                i, j = 119 - i, 119 - j
+            move_str = render(i) + render(j) + move.prom.lower()
+            print(f"info depth {depth} score cp {score} pv {move_str}")
+        if move_str and time.time() - start > think * 0.8:
+            break
+
+print("bestmove", move_str or '(none)')
