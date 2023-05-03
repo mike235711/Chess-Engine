@@ -12,7 +12,7 @@ When evaluating positions, my idea is to use a neural network. Since speed is ve
 There are many choices of search algorithms for chess engines, however alpha-beta pruning is the most efficient because it prunes branches of the tree search that one doesn't need to search. On top of the alpha beta search I have added a score to moves depending on capturing pieces, pawns and making checks. The algorithm is contructed such that it considers high score moves first, making it faster because it prunes more branches. I have also applied quiescence search so that in tactical positions (when there are possible captures or checks by either side) it moves reasonably until a quiet position is reached.
 
 To do:
-* Castling moves don't appear in gen_moves
+* Castling moves don't appear in gen_moves - fixed
 * Hash Tables - Done (Speeds up to twice the Engine, see notebook)
 * 50 move rule
 * Iterative deepening - Done, but want to add variations not only first move
